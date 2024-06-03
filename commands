@@ -1,0 +1,7 @@
+Rabbit:
+rabbitmq-server
+
+requirements:
+pip freeze > requirements.txt (используемые библиотеки в проекте)
+pip install -r requirements.txt (установка библиотек из проекта)
+
