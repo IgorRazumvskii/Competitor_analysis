@@ -5,3 +5,8 @@ requirements:
 pip freeze > requirements.txt (используемые библиотеки в проекте)
 pip install -r requirements.txt (установка библиотек из проекта)
 
+django:
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
