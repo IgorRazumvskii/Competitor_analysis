@@ -1,6 +1,14 @@
-from bs4 import BeautifulSoup
-import requests
 import json
+import time
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+
 
 URLS = {
     "valta":lambda vendor_code: f"https://valta.ru/search/?q={vendor_code}",
@@ -21,6 +29,9 @@ def json_to_dict(filename: str) -> dict | None:
 class Parser:
     def __init__(self):
         self.session = requests.Session()
+        option = Options()
+        option.add_argument('--disable-infobars')
+        self.browser = webdriver.Chrome(options=option)
         self.session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.60 YaBrowser/20.12.0.963 Yowser/2.5 Safari/537.36 '})
 
     def getSoup(self, url):
@@ -47,12 +58,10 @@ class Parser:
     #TODO! Selenium
     def parse4Lapy(self, search_text):
         url = URLS["4lapy"](search_text)
-        soup = self.getSoup(url)
-        print(soup)
-        if not soup: return None
-        goods = soup.findAll("article", class_="CardProduct_root__7zZ3z")
-        for good in goods:
-            print(good.find("a", class_="CardProduct_link__Rg5M2 CardProduct_productName__SpF51 text-item undefined"))
+        #init selenium headless browser
+        self.browser.get(url)
+
+
 
     def parseZoozavr(self, vendor_code):
         url = URLS["zoozavr"](vendor_code)
@@ -68,5 +77,5 @@ class Parser:
 if __name__ == "__main__":
     parser = Parser()
     #parser.parseValta("70085281")
-    #parser.parse4Lapy("Кошачий корм")
-    parser.parseZoozavr("70085281")
+    parser.parse4Lapy("Кошачий корм")
+    #parser.parseZoozavr("70085281")
