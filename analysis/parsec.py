@@ -29,10 +29,11 @@ def json_to_dict(filename: str) -> dict | None:
 class Parser:
     def __init__(self):
         self.session = requests.Session()
-        option = Options()
-        option.add_argument('--disable-infobars')
-        self.browser = webdriver.Chrome(options=option)
-        self.session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.60 YaBrowser/20.12.0.963 Yowser/2.5 Safari/537.36 '})
+        # option = Options()
+        # option.add_argument('--disable-infobars')
+        # self.browser = webdriver.Chrome(options=option)
+        # self.session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.60 YaBrowser/20.12.0.963 Yowser/2.5 Safari/537.36 '})
+
 
     def getSoup(self, url):
         req = self.session.get(url)
@@ -76,6 +77,7 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    #parser.parseValta("70085281")
-    parser.parse4Lapy("Кошачий корм")
+    parser.parseValta("70085281")
+
+    #parser.parse4Lapy("Кошачий корм")
     #parser.parseZoozavr("70085281")
