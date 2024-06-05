@@ -6,3 +6,8 @@
     "username": "username"
     }
 }
+
+{
+    "username": "user1",
+    "password": "Pass1234!"
+}
