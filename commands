@@ -10,3 +10,6 @@ python manage.py makemigrations
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
+
+celery:
+celery -A Competitor_analysis worker -l INFO (Запуск)

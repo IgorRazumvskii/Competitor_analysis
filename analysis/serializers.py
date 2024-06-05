@@ -5,22 +5,21 @@ from .models import Product, Store
 
 
 class UserSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = User
-        fields = '__all__'
-
-
-class StoreSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Store
-        fields = '__all__'
+        fields = ['username']
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    store = StoreSerializer()
-    user = UserSerializer()
+    # user = UserSerializer()
+
+    class Meta:
+        model = Product
+        fields = ['vendor_code']
+
+
+class ProductSerializerCreate(serializers.ModelSerializer):
+    # user = UserSerializer()
 
     class Meta:
         model = Product
