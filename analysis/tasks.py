@@ -23,8 +23,5 @@ def parsing(vendor_code=0, user_id=0):
     # )
     # TODO! Добавить сюда JSON
     x = parser.run(" ", "70085281")
-    s = ProductSerializerCreate(x)
-
-    print('\nparser\n', s)
-    return
-    # return parser.run(" ", "70085281")
+    # s = ProductSerializerCreate(x)
+    return parser.run(" ", "70085281")

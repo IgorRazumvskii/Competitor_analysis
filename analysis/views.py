@@ -45,7 +45,8 @@ def login_user(request):
 
 
 # получение запроса на парсинг
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def post_product(request):
     # hello.delay()
     print(request.user)
