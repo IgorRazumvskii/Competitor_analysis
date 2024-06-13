@@ -1,6 +1,7 @@
 import json
 import time
 import requests
+from copy import deepcopy
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -40,7 +41,8 @@ class Parser:
             return None
         return BeautifulSoup(req.text, "html.parser")
 
-    def parseValta(self, vendor_code: str):
+    def parseValta(self, old_json):
+        vendor_code = old_json["vendor_code"]
         url = URLS["valtaS"](vendor_code)
         soup = self.getSoup(url)
         good_url, price = None, None
@@ -59,12 +61,12 @@ class Parser:
         descriptions = soup.find("div", class_="detail__about")
         descriptions = descriptions.findAll("p")
         descriptions = list(map(lambda x: x.text.strip(), descriptions))
-        return {
-            "store": "valta",
-            "name": descriptions[0],
-            "price": price,
-            "desc": " ".join(descriptions[1:])
-        }
+        old_json["name"] = descriptions[0]
+        descriptions = " ".join(descriptions[1:])
+        old_json["text"] = descriptions[1:]
+        old_json["store"]["name"] = "Valta"
+        old_json["price"] = price
+        return old_json
 
     #TODO! Selenium
     def parse4Lapy(self, search_text):
@@ -86,14 +88,28 @@ class Parser:
 
 
 
-    def parseZoozavr(self, vendor_code):
+    def parseZoozavr(self, vendor_code, username):
         url = URLS["zoozavr"](vendor_code)
         soup = self.getSoup(url)
         if not soup: return None
         print(soup)
 
 
-    def parseOldFarm(self, vendor_code):
+    def perform_json(self, vendor_code, username):
+        return {
+            "vendor_code": vendor_code,
+            "username": username,
+            "name": None,
+            "price": None,
+            "text": None,
+            "store":{
+                "name": None,
+            }
+        }
+
+    def parseOldFarm(self, old_json):
+        vendor_code  = old_json["vendor_code"]
+
         url  = URLS["oldFarmS"](vendor_code)
         soup  = self.getSoup(url)
         soup = soup.find("div", class_="product-wrap")
@@ -108,23 +124,19 @@ class Parser:
         text = soup.find("h1", class_="heading heading_product").text.strip()
         desc = soup.find("article", class_="article article_tabs").findAll("p")
         desc = " ".join(map(lambda p: p.text.strip(), desc))
-        return {
-            "store":  "oldFarm",
-            "name":   text,
-            "price":  price,
-            "desc":   desc
-        }
+        old_json["name"] = text
+        old_json["text"] = desc
+        old_json["store"]["name"] = "OldFarm"
+        old_json["price"] = price
+        return old_json
 
 
     def run(self, user_id: str, vendor_code: str) -> dict:
-        response = {
-            "user_id":  user_id,
-            "vendor_code": vendor_code,
-            "parsed": []
-        }
-        response["parsed"].append(self.parseValta(vendor_code))
-        response["parsed"].append(self.parseOldFarm(vendor_code))
-        return response
+        clean_json = self.perform_json(vendor_code, user_id)
+        repsonse = []
+        repsonse.append(self.parseValta(deepcopy(clean_json)))
+        repsonse.append(self.parseOldFarm(deepcopy(clean_json)))
+        return repsonse
 
 
 if __name__ == "__main__":
