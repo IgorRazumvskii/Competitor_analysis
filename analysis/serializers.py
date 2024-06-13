@@ -47,13 +47,15 @@ class ProductSerializerCreate(serializers.ModelSerializer):
         promotion = validated_data.pop('promotion')
         date = validated_data.pop('date')
 
-        create_product = Product.objects.create(store=store,
-                                                user=user,
+        create_product = Product.objects.create(store=Store.objects.get(name=store),
+                                                user=User.objects.get(username=user),
                                                 vendor_code=vendor_code,
                                                 name=name,
                                                 price=price,
                                                 promotion=promotion,
                                                 date=date)
+        print(create_product)
         create_product.save()
+        return create_product
 
 

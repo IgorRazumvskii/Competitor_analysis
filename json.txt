@@ -7,7 +7,35 @@
     }
 }
 
+
 {
     "username": "user1",
     "password": "Pass1234!"
+}
+
+
+{
+    {
+        "vendor_code": "vendor_code",
+        "username": "username"
+        "name_1": "name",
+        "price_1": "price",
+        "promotion_1": "promotion",
+
+        "store":
+        {
+            "name": "name"
+        }
+    },
+        {
+        "vendor_code": "vendor_code",
+        "name_2": "name",
+        "price_2": "price",
+        "promotion_2": "promotion",
+
+        "store":
+        {
+            "name": "name"
+        }
+    }
 }

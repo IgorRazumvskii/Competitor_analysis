@@ -3,6 +3,7 @@ from .parsec import Parser
 import time
 from .models import Product, Store
 from django.contrib.auth.models import User
+from .serializers import ProductSerializerCreate
 
 
 # можно через таску сохранять данные в модель
@@ -21,4 +22,9 @@ def parsing(vendor_code=0, user_id=0):
     #
     # )
     # TODO! Добавить сюда JSON
-    return parser.parseValta("70085281")
+    x = parser.run(" ", "70085281")
+    s = ProductSerializerCreate(x)
+
+    print('\nparser\n', s)
+    return
+    # return parser.run(" ", "70085281")

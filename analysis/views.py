@@ -1,9 +1,13 @@
 import time
 import asyncio
-from django.contrib.auth import authenticate
-from django.shortcuts import render
-from rest_framework import generics, status
 
+from celery.result import AsyncResult
+
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.shortcuts import render
+
+from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -12,15 +16,6 @@ from rest_framework.response import Response
 from .models import Product, Store
 from .serializers import ProductSerializer, ProductSerializerCreate, UserSerializer
 from .tasks import parsing
-
-from celery.result import AsyncResult
-
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework import status
-from .serializers import UserSerializer
 
 
 @api_view(['POST'])
@@ -69,12 +64,18 @@ def post_product(request):
 
 
 # вывод результата парсера
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 def check_task_status(request, task_id):
     result = AsyncResult(task_id)
     # if result.ready():
     return Response({'task.id': task_id,
                      'status': result.status,
                      'result': result.result})
+
+
+@api_view(['GET'])
+def history(request):
+    user = User.objects.get(username=request.user.username)
+    products = Product.objects.filter(user=user)
 
 
