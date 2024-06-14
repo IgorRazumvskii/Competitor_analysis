@@ -99,7 +99,9 @@ class Parser:
     def perform_json(self, vendor_code, username):
         return {
             "vendor_code": vendor_code,
-            "username": "admin",
+            "user":{
+                "username": "admin"
+            },
             "name": None,
             "price": None,
             "text": None,
