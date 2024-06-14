@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
-from fuzzywuzzy import fuzz
+from fuzzywuzzy.fuzz import token_sort_ratio as ncmp
 
 URLS = {
     "valta": "https://valta.ru",
@@ -147,24 +147,34 @@ class Parser:
         )
         goods = elem.find_elements(By.XPATH, "//div[contains(@class, 'pr-card__description')]")
         if not goods: return None
-        for good in goods:
+        mxnum = 0
+        mxgood = None
+        for idx, good in enumerate(goods):
             name = good.find_element(By.CLASS_NAME, "sale-gray-dark")
-            print(name.text)
-
-
+            cmp = ncmp(vendor_code, name.text)
+            if cmp > mxnum:
+                mxnum = cmp
+                mxgood = idx
+        json["store"]["name"] = "Bethoven",
+        if mxnum < 76:
+            json["name"] = "Н/Д",
+            json["text"] = "Н/Д",
+            json["price"] = "Н/Д"
+            return json
+        element = goods[mxgood]
+        json["name"] = element.find_element(By.CLASS_NAME, "sale-gray-dark").text
+        json["text"] = "Н/Д"
+        price = str(float(element.find_element(By.CLASS_NAME, "pr-card__retail-price").text.replace('\u20BD', '').replace(' ', '')))
+        json["price"] = price
+        return json
 
     def run(self, user_id: str, vendor_code: str) -> dict:
         clean_json = self.perform_json(vendor_code, user_id)
-        repsonse = []
-        repsonse.append(self.parseValta(deepcopy(clean_json)))
-        repsonse.append(self.parseOldFarm(deepcopy(clean_json)))
+        repsonse = [self.parseValta(deepcopy(clean_json)), self.parseOldFarm(deepcopy(clean_json))]
+        bet_copy = deepcopy(clean_json)
+        bet_copy["vendor_code"] = repsonse[0]["name"]
+        self.selenium_init()
+        repsonse.append(self.parseBethoven(bet_copy))
+        repsonse[-1]["vendor_code"]  =  repsonse[0]["vendor_code"]
         return repsonse
 
-
-if __name__ == "__main__":
-    parser = Parser()
-    #print(parser.run("test", "7173549"))
-    parser.selenium_init()
-    clean_json = parser.perform_json("AWARD", "test")
-    parser.parseBethoven(clean_json)
-    #print(parser.parseOldFarm("7173549"))
