@@ -96,11 +96,10 @@ class Parser:
         if not soup: return None
         print(soup)
 
-
     def perform_json(self, vendor_code, username):
         return {
             "vendor_code": vendor_code,
-            "username": username,
+            "username": "admin",
             "name": None,
             "price": None,
             "text": None,
