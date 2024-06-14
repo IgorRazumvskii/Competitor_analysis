@@ -14,10 +14,12 @@ from selenium.webdriver.chrome.options import Options
 URLS = {
     "valta": "https://valta.ru",
     "oldFarm": "https://dogeat.ru",
+    "bethoven": "https://www.bethowen.ru",
     "valtaS":lambda vendor_code: f"https://valta.ru/search/?q={vendor_code}",
     "4lapy":lambda search_text: f"https://new.4lapy.ru/search/filter/?query={search_text}&skipQueryCorrection=0",
     "zoozavr":lambda search_text: f"https://zoozavr.ru/search/results/?qt={search_text}&searchType=zoo&searchMode=common",
     "oldFarmS":lambda search_text: f"https://www.dogeat.ru/catalog/?q={search_text}",
+    "bethovenS":lambda search_text: f"https://www.bethowen.ru/search/?q={search_text}",
 }
 
 
@@ -130,6 +132,11 @@ class Parser:
         old_json["price"] = price
         return old_json
 
+def parseBethoven(self, json):
+    vendor_code = json["vendor_code"]
+    url = URLS["bethovenS"](vendor_code)
+    soup  = self.getSoup(url)
+    print(soup)
 
     def run(self, user_id: str, vendor_code: str) -> dict:
         clean_json = self.perform_json(vendor_code, user_id)
@@ -141,5 +148,6 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    print(parser.run("test", "7173549"))
+    #print(parser.run("test", "7173549"))
+    parser.parseBe
     #print(parser.parseOldFarm("7173549"))
