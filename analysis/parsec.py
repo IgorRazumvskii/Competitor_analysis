@@ -133,11 +133,11 @@ class Parser:
         old_json["price"] = price
         return old_json
 
-def parseBethoven(self, json):
-    vendor_code = json["vendor_code"]
-    url = URLS["bethovenS"](vendor_code)
-    soup  = self.getSoup(url)
-    print(soup)
+    def parseBethoven(self, json):
+        vendor_code = json["vendor_code"]
+        url = URLS["bethovenS"](vendor_code)
+        soup  = self.getSoup(url)
+        print(soup)
 
     def run(self, user_id: str, vendor_code: str) -> dict:
         clean_json = self.perform_json(vendor_code, user_id)
@@ -150,5 +150,5 @@ def parseBethoven(self, json):
 if __name__ == "__main__":
     parser = Parser()
     #print(parser.run("test", "7173549"))
-    parser.parseBe
+    parser.parseBethoven("test")
     #print(parser.parseOldFarm("7173549"))
