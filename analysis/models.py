@@ -9,9 +9,9 @@ class Store(models.Model):
 
 class Product(models.Model):
     vendor_code = models.CharField(max_length=20)  # артикул
-    name = models.CharField(max_length=20)
+    name = models.TextField()
     price = models.FloatField()
-    promotion = models.FloatField()  # скидка
+    text = models.TextField(default='')  # скидка
     date = models.DateTimeField(auto_now_add=True)
 
     store = models.ForeignKey(Store, on_delete=models.PROTECT)
