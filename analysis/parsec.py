@@ -36,6 +36,11 @@ class Parser:
     def __init__(self):
         self.session = requests.Session()
 
+    def selenium_init(self):
+        options = Options()
+        self.driver  = webdriver.Chrome(options=options)
+
+
     def getSoup(self, url):
         req = self.session.get(url)
         if req.status_code != 200:
@@ -136,8 +141,17 @@ class Parser:
     def parseBethoven(self, json):
         vendor_code = json["vendor_code"]
         url = URLS["bethovenS"](vendor_code)
-        soup  = self.getSoup(url)
-        print(soup)
+        self.driver.get(url)
+        elem = WebDriverWait(self.driver, 30).until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'dgn-flex')]"))
+        )
+        goods = elem.find_elements(By.XPATH, "//div[contains(@class, 'pr-card__description')]")
+        if not goods: return None
+        for good in goods:
+            name = good.find_element(By.CLASS_NAME, "sale-gray-dark")
+            print(name.text)
+
+
 
     def run(self, user_id: str, vendor_code: str) -> dict:
         clean_json = self.perform_json(vendor_code, user_id)
@@ -150,5 +164,7 @@ class Parser:
 if __name__ == "__main__":
     parser = Parser()
     #print(parser.run("test", "7173549"))
-    parser.parseBethoven("test")
+    parser.selenium_init()
+    clean_json = parser.perform_json("AWARD", "test")
+    parser.parseBethoven(clean_json)
     #print(parser.parseOldFarm("7173549"))
