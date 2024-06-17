@@ -66,7 +66,7 @@ def post_product(request):
             return Response(serializer.data)
 
         #  запуск парсера
-        p = parsing.delay()
+        p = parsing.delay(vendor_code, user.username)
         result = AsyncResult(p.id)
 
         while result.result == None:

@@ -56,9 +56,10 @@ from .serializers import ProductSerializerCreate
 @shared_task
 def parsing(vendor_code=0, user=0):
     parser = Parser()
-    data = parser.run(" ", "70085281")
+    # data = parser.run(" ", "70085281")
+    data = parser.run(user, vendor_code)
     for item in data:
-        usernames = ['admin']  # Пример списка имен пользователей
+        usernames = [user]
         users = [User.objects.get_or_create(username=username)[0] for username in usernames]
 
         serializer_data = {

@@ -105,8 +105,8 @@ class Parser:
         return {
             "vendor_code": vendor_code,
             "user":{
-                "username": "admin",
-                "password": "admin"
+                "username": username,
+                # "password": "admin"
             },
             "name": None,
             "price": None,
@@ -119,8 +119,8 @@ class Parser:
     def parseOldFarm(self, old_json):
         vendor_code  = old_json["vendor_code"]
 
-        url  = URLS["oldFarmS"](vendor_code)
-        soup  = self.getSoup(url)
+        url = URLS["oldFarmS"](vendor_code)
+        soup = self.getSoup(url)
         soup = soup.find("div", class_="product-wrap")
         soup = soup.find_all("div", class_="product-item")
         if len(soup) != 1: return None
@@ -170,6 +170,7 @@ class Parser:
         return json
 
     def run(self, user_id: str, vendor_code: str) -> dict:
+        print(user_id, vendor_code)
         clean_json = self.perform_json(vendor_code, user_id)
         repsonse = [self.parseValta(deepcopy(clean_json)), self.parseOldFarm(deepcopy(clean_json))]
         bet_copy = deepcopy(clean_json)
