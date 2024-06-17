@@ -1,10 +1,7 @@
 {
-  "vendor_code": "1111",
+  "vendor_code": "70085281",
 
-   "user":
-   {
-    "username": "username"
-    }
+   "token": "6d1c5083be460f1701a28db9cf03e1751a9f3c6b"
 }
 
 

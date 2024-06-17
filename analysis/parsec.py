@@ -100,7 +100,8 @@ class Parser:
         return {
             "vendor_code": vendor_code,
             "user":{
-                "username": "admin"
+                "username": "admin",
+                "password": "admin"
             },
             "name": None,
             "price": None,

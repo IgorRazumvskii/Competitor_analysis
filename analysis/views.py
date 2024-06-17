@@ -1,3 +1,5 @@
+import datetime
+from django.utils import timezone
 import time
 import asyncio
 
@@ -14,17 +16,18 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Product, Store
-from .serializers import ProductSerializer, ProductSerializerCreate, UserSerializer
+from .serializers import ProductSerializer, ProductSerializerCreate, UserSerializer, UserSerializerCreate
 from .tasks import parsing
 
 
+#  регистрация
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_user(request):
     print('!!!')
     print(request)
     if request.method == 'POST':
-        serializer = UserSerializer(data=request.data)
+        serializer = UserSerializerCreate(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             token, created = Token.objects.get_or_create(user=user)
@@ -32,6 +35,7 @@ def register_user(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+#  авторизация
 @api_view(['POST'])
 def login_user(request):
     if request.method == 'POST':
@@ -48,16 +52,25 @@ def login_user(request):
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def post_product(request):
-    # hello.delay()
-    print(request.user)
     if request.method == 'POST':
+        #  берем артикул
         vendor_code = request.data['vendor_code']
+        #  достаем пользователя
+        token = Token.objects.get(key=request.data['token'])
+        user = token.user
+
+        #  поиск товаров, которые парсились сегодня
+        products = Product.objects.filter(vendor_code=vendor_code, date=timezone.now())
+        if products.exists():
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+
+        #  запуск парсера
         p = parsing.delay()
         result = AsyncResult(p.id)
 
         while result.result == None:
             time.sleep(1)
-            # asyncio.sleep(1)
 
         return Response({'task.id': p.id,
                         'result': result.result})
