@@ -62,6 +62,9 @@ def post_product(request):
         #  поиск товаров, которые парсились сегодня
         products = Product.objects.filter(vendor_code=vendor_code, date=timezone.now())
         if products.exists():
+
+            for p in products:
+                p.user.add(user)
             serializer = ProductSerializer(products, many=True)
             return Response(serializer.data)
 

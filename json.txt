@@ -1,7 +1,7 @@
 {
   "vendor_code": "70085281",
 
-   "token": "6d1c5083be460f1701a28db9cf03e1751a9f3c6b"
+   "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
 }
 
 
