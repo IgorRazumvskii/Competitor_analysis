@@ -9,4 +9,5 @@ urlpatterns = [
     path('login/', login_user),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
     path('history/', all_history, name='history'),
+    path('product_history/', product_history, name='product_history')
 ]

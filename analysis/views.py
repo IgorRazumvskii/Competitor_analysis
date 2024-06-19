@@ -75,8 +75,7 @@ def post_product(request):
         while result.result == None:
             time.sleep(1)
 
-        return Response({'task.id': p.id,
-                        'result': result.result})
+        return Response(result.result)
     return Response()
 
 
@@ -90,9 +89,37 @@ def check_task_status(request, task_id):
                      'result': result.result})
 
 
-@api_view(['GET'])
-def history(request):
-    user = User.objects.get(username=request.user.username)
-    products = Product.objects.filter(user=user)
+@api_view(['POST'])
+def all_history(request):
+    if request.method == 'POST':
+        token = Token.objects.get(key=request.data['token'])
+        user = token.user
+        products = Product.objects.filter(user=user)
+
+        history = {}
+
+        for product in products:
+            if product.date not in history:
+                date = product.date
+                unic_products = []
+                for i in products:
+                    if i.date == date and i.vendor_code not in unic_products:
+                        unic_products.append(i.vendor_code)
+
+                history[product.date] = unic_products
+
+        unique_product_list = list(history.items())
+        return Response(unique_product_list)
 
 
+@api_view(['POST'])
+def product_history(request):
+    if request.method == 'POST':
+        #  token = Token.objects.get(key=request.data['token'])
+        products = Product.objects.filter(
+            vendor_code=request.data['vendor_code'],
+            date=request.data['date'])
+
+        if products.exists():
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
