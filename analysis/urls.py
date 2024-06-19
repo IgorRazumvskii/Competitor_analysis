@@ -8,4 +8,5 @@ urlpatterns = [
     path('register/', register_user, name='register_user'),
     path('login/', login_user),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
+    path('history/', all_history, name='history'),
 ]

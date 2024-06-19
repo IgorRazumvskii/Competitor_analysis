@@ -78,7 +78,7 @@ class Parser:
             break
         if not good_url:
             return None
-        price = str(float(price.split()[0]))
+        price = str(float(price.replace('руб', '').replace(' ', '')))
         soup = self.getSoup(f"{URLS['valta']}{good_url}")
         descriptions = soup.find("div", class_="detail__about")
         descriptions = descriptions.findAll("p")
@@ -137,6 +137,7 @@ class Parser:
         url = URLS["oldFarmS"](vendor_code)
         soup = self.getSoup(url)
         soup = soup.find("div", class_="product-wrap")
+        if not soup: return old_json
         soup = soup.find_all("div", class_="product-item")
         if len(soup) != 1: return None
         else: soup = soup[0]
@@ -188,10 +189,10 @@ class Parser:
         print(user_id, vendor_code)
         clean_json = self.perform_json(vendor_code, user_id)
         repsonse = [self.parseValta(deepcopy(clean_json)), self.parseOldFarm(deepcopy(clean_json))]
-        bet_copy = deepcopy(clean_json)
-        bet_copy["vendor_code"] = repsonse[0]["name"]
-        self.selenium_init()
-        repsonse.append(self.parseBethoven(bet_copy))
-        repsonse[-1]["vendor_code"]  =  repsonse[0]["vendor_code"]
+        #bet_copy = deepcopy(clean_json)
+        #bet_copy["vendor_code"] = repsonse[0]["name"]
+        #self.selenium_init()
+        #repsonse.append(self.parseBethoven(bet_copy))
+        #repsonse[-1]["vendor_code"]  =  repsonse[0]["vendor_code"]
         return repsonse
 

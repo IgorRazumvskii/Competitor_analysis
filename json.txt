@@ -6,8 +6,13 @@
 
 
 {
-    "username": "user1",
-    "password": "Pass1234!"
+   "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
+}
+
+
+{
+    "username": "admin",
+    "password": "admin"
 }
 
 
