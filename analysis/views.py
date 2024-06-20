@@ -96,20 +96,25 @@ def all_history(request):
         user = token.user
         products = Product.objects.filter(user=user)
 
-        history = {}
-
+        history = []
+        dates = []
         for product in products:
-            if product.date not in history:
+            d = {}
+            if product.date not in dates:
                 date = product.date
+                dates.append(date)
+                d['date'] = date
                 unic_products = []
                 for i in products:
                     if i.date == date and i.vendor_code not in unic_products:
                         unic_products.append(i.vendor_code)
 
-                history[product.date] = unic_products
+                d['vendor_code'] = unic_products
 
-        unique_product_list = list(history.items())
-        return Response(unique_product_list)
+            if len(d.keys()) != 0:
+                history.append(d)
+
+        return Response(history)
 
 
 @api_view(['POST'])
@@ -123,3 +128,18 @@ def product_history(request):
         if products.exists():
             serializer = ProductSerializer(products, many=True)
             return Response(serializer.data)
+
+
+#  функция для построения графиков цены товара
+@api_view(['POST'])
+def graph(request):
+    if request.method == 'POST':
+        store = Store.objects.get(name=request.data['store'])
+        products = Product.objects.filter(
+            vendor_code=request.data['vendor_code'],
+            store=store
+        )
+        if products.exists():
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+
