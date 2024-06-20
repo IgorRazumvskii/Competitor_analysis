@@ -73,7 +73,7 @@ class MultiParser:
 
 
 def parse_valta(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "valta"
+    shell["store"]["name"] = "Valta"
     url = f'{URL["valta"]["url"]}/{URL["valta"]["search_form"]}'
     url = url.replace("$",  search_object)
     soup = mp.get_by_url(url)

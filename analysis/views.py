@@ -69,6 +69,9 @@ def post_product(request):
 
         #  запуск парсера
         p = parsing.delay(vendor_code, user.username)
+        if p == 'Error':
+            return Response({"Error": "Неправильно введен артикул"})
+
         result = AsyncResult(p.id)
 
         while result.result == None:
