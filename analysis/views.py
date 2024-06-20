@@ -24,7 +24,6 @@ from .tasks import parsing
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_user(request):
-    print('!!!')
     print(request)
     if request.method == 'POST':
         serializer = UserSerializerCreate(data=request.data)
@@ -89,6 +88,7 @@ def check_task_status(request, task_id):
                      'result': result.result})
 
 
+#  история парсинга пользователя
 @api_view(['POST'])
 def all_history(request):
     if request.method == 'POST':
@@ -117,10 +117,10 @@ def all_history(request):
         return Response(history)
 
 
+# Вывод сравнения из истории
 @api_view(['POST'])
 def product_history(request):
     if request.method == 'POST':
-        #  token = Token.objects.get(key=request.data['token'])
         products = Product.objects.filter(
             vendor_code=request.data['vendor_code'],
             date=request.data['date'])
