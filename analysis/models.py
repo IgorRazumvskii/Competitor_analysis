@@ -11,8 +11,8 @@ class Product(models.Model):
     vendor_code = models.CharField(max_length=20)  # артикул
     name = models.TextField()
     price = models.FloatField()
-    text = models.TextField(default='')  # скидка
-    date = models.DateTimeField(auto_now_add=True)
+    text = models.TextField(default='')
+    date = models.DateField(auto_now=True)
 
     store = models.ForeignKey(Store, on_delete=models.PROTECT)
     user = models.ManyToManyField(User)

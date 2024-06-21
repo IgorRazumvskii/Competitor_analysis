@@ -1,41 +1,28 @@
 {
-  "vendor_code": "1111",
+  "vendor_code": "70085281",
 
-   "user":
-   {
-    "username": "username"
-    }
+   "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
 }
 
 
 {
-    "username": "user1",
-    "password": "Pass1234!"
+   "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
 }
 
 
 {
-    {
-        "vendor_code": "vendor_code",
-        "username": "username"
-        "name_1": "name",
-        "price_1": "price",
-        "promotion_1": "promotion",
+    "username": "admin",
+    "password": "admin"
+}
 
-        "store":
-        {
-            "name": "name"
-        }
-    },
-        {
-        "vendor_code": "vendor_code",
-        "name_2": "name",
-        "price_2": "price",
-        "promotion_2": "promotion",
+{
+   "vendor_code": "70085281",
+   "date": "2024-06-19"
+}
 
-        "store":
-        {
-            "name": "name"
-        }
-    }
+
+
+{
+    "vendor_code": "70085281",
+    "store": "Valta"
 }

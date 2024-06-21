@@ -1,3 +1,5 @@
+import datetime
+from django.utils import timezone
 import time
 import asyncio
 
@@ -14,17 +16,17 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Product, Store
-from .serializers import ProductSerializer, ProductSerializerCreate, UserSerializer
+from .serializers import ProductSerializer, ProductSerializerCreate, UserSerializer, UserSerializerCreate
 from .tasks import parsing
 
 
+#  регистрация
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_user(request):
-    print('!!!')
     print(request)
     if request.method == 'POST':
-        serializer = UserSerializer(data=request.data)
+        serializer = UserSerializerCreate(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             token, created = Token.objects.get_or_create(user=user)
@@ -32,6 +34,7 @@ def register_user(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+#  авторизация
 @api_view(['POST'])
 def login_user(request):
     if request.method == 'POST':
@@ -48,19 +51,42 @@ def login_user(request):
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def post_product(request):
-    # hello.delay()
-    print(request.user)
     if request.method == 'POST':
+        #  берем артикул
         vendor_code = request.data['vendor_code']
-        p = parsing.delay()
+        #  достаем пользователя
+        token = Token.objects.get(key=request.data['token'])
+        user = token.user
+
+        #  поиск товаров, которые парсились сегодня
+        products = Product.objects.filter(vendor_code=vendor_code, date=timezone.now())
+        if products.exists():
+
+            for p in products:
+                p.user.add(user)
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+
+        #  запуск парсера
+        p = parsing.delay(vendor_code, user.username)
+        if p == 'Error':
+            return Response({"Error": "Неправильно введен артикул"})
+
         result = AsyncResult(p.id)
 
-        while result.result == None:
-            time.sleep(1)
-            # asyncio.sleep(1)
+        # while result.result == None:
+        #     time.sleep(1)
 
-        return Response({'task.id': p.id,
-                        'result': result.result})
+        timeout = 60  # Максимальное время ожидания в секундах
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            result = AsyncResult(p.id)
+            if result.ready():
+                if result.state == 'SUCCESS':
+                    return Response(result.result)
+                else:
+                    return Response({'status': result.state})
+
     return Response()
 
 
@@ -74,9 +100,58 @@ def check_task_status(request, task_id):
                      'result': result.result})
 
 
-@api_view(['GET'])
-def history(request):
-    user = User.objects.get(username=request.user.username)
-    products = Product.objects.filter(user=user)
+#  история парсинга пользователя
+@api_view(['POST'])
+def all_history(request):
+    if request.method == 'POST':
+        token = Token.objects.get(key=request.data['token'])
+        user = token.user
+        products = Product.objects.filter(user=user)
 
+        history = []
+        dates = []
+        for product in products:
+            d = {}
+            if product.date not in dates:
+                date = product.date
+                dates.append(date)
+                d['date'] = date
+                unic_products = []
+                for i in products:
+                    if i.date == date and i.vendor_code not in unic_products:
+                        unic_products.append(i.vendor_code)
+
+                d['vendor_code'] = unic_products
+
+            if len(d.keys()) != 0:
+                history.append(d)
+
+        return Response(history)
+
+
+# Вывод сравнения из истории
+@api_view(['POST'])
+def product_history(request):
+    if request.method == 'POST':
+        products = Product.objects.filter(
+            vendor_code=request.data['vendor_code'],
+            date=request.data['date'])
+
+        if products.exists():
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+
+
+#  функция для построения графиков цены товара
+@api_view(['POST'])
+def graph(request):
+    if request.method == 'POST':
+        store = Store.objects.get(name=request.data['store'])
+        products = Product.objects.filter(
+            vendor_code=request.data['vendor_code'],
+            store=store
+        )
+        if products.exists():
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
 

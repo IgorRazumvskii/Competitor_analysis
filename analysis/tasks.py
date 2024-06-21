@@ -1,35 +1,83 @@
 from celery import shared_task
-from .parsec import Parser
+from .parsec import parse, ParserERRORS
 import time
 from .models import Product, Store
 from django.contrib.auth.models import User
 from .serializers import ProductSerializerCreate
 
 
-# можно через таску сохранять данные в модель
 # @shared_task
 # def parsing(vendor_code=0, user_id=0):
 #     parser = Parser()
-#     x = parser.run(" ", "70085281")
-#     for i in range(len(x)):
-#         print(f'{i}')
-#         serializer = ProductSerializerCreate(x[i])
-#         print(serializer.data)
+#     data = parser.run(" ", "70085281")
+#     for item in data:
+#         serializer = ProductSerializerCreate(data=item)
 #         if serializer.is_valid():
 #             serializer.save()
-#         # print(s)
+#         else:
+#             print(serializer.errors)
+#     return data
+
+# @shared_task
+# def parsing(vendor_code=0, user_id=0):
+#     parser = Parser()
+#     data = parser.run(" ", "70085281")
+#     for item in data:
+#         username = item['user']['username']
+#         user = User.objects.get(username=username)
+#         item['user'] = user.pk
+#         print(f'!!!!!!! {type(item["user"])}')
+#         serializer = ProductSerializerCreate(data=item)
+#         if serializer.is_valid():
+#             serializer.save()
+#         else:
+#             print(serializer.errors)
+#     return data
+
+# @shared_task
+# def parsing(vendor_code=0, user_id=0):
+#     parser = Parser()
+#     data = parser.run(" ", "70085281")
+#     for item in data:
+#         # Получаем пользователя по имени или создаем нового, если он не существует
+#         username = 'username'
+#         user, created = User.objects.get_or_create(username=username)
 #
-#     # s = ProductSerializerCreate(x)
-#     return parser.run(" ", "70085281")
+#         # Убедимся, что в данных для продукта указан правильный пользователь (pk, а не объект пользователя)
+#         item['user'] = user.pk  # Используем pk пользователя
+#         serializer = ProductSerializerCreate(data=item)
+#         if serializer.is_valid():
+#             serializer.save()
+#         else:
+#             print(serializer.errors)
+#     return data
+
 
 @shared_task
-def parsing(vendor_code=0, user_id=0):
-    parser = Parser()
-    data = parser.run(" ", "70085281")
+def parsing(vendor_code=0, user=0):
+    data = parse(user, vendor_code)
+
+    if not type(data) == list:
+        return 'Error'
+
     for item in data:
-        serializer = ProductSerializerCreate(data=item)
+        usernames = [user]
+        users = [User.objects.get_or_create(username=username)[0] for username in usernames]
+
+        serializer_data = {
+            "vendor_code": item['vendor_code'],
+            "name": item['name'],
+            "price": item['price'],
+            "text": item['text'],
+            "store": item['store'],
+            "user": [user.pk for user in users]  # Передаем список первичных ключей пользователей
+        }
+
+        serializer = ProductSerializerCreate(data=serializer_data)
         if serializer.is_valid():
             serializer.save()
         else:
             print(serializer.errors)
     return data
+
+
