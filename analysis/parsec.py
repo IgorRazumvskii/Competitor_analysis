@@ -310,7 +310,7 @@ def parse_multithreaded(username: str, vendor_code: str) -> list | ParserERRORS:
     ]
     thread_control(threads)
     result.append(unpack_queue(queue))
-
+    result = list(map(lambda el: el[0], result))
     return result
 
 
