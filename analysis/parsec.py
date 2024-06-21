@@ -1,8 +1,11 @@
+import enum
 import json
 import time
 import requests
+from queue import Queue
 from copy import deepcopy
 from bs4 import BeautifulSoup
+from threading import Thread
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -11,170 +14,312 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from fuzzywuzzy.fuzz import token_sort_ratio as ncmp
 
-URLS = {
-    "valta": "https://valta.ru",
-    "oldFarm": "https://dogeat.ru",
-    "bethoven": "https://www.bethowen.ru",
-    "valtaS":lambda vendor_code: f"https://valta.ru/search/?q={vendor_code}",
-    "4lapy":lambda search_text: f"https://new.4lapy.ru/search/filter/?query={search_text}&skipQueryCorrection=0",
-    "zoozavr":lambda search_text: f"https://zoozavr.ru/search/results/?qt={search_text}&searchType=zoo&searchMode=common",
-    "oldFarmS":lambda search_text: f"https://www.dogeat.ru/catalog/?q={search_text}",
-    "bethovenS":lambda search_text: f"https://www.bethowen.ru/search/?q={search_text}",
+URL = {
+    "valta": {
+        "url": "https://valta.ru",
+        "search_form": "search/?q=$"
+    },
+    "old_farm": {
+        "url": "https://www.dogeat.ru",
+        "search_form": "catalog/?q=$"
+    },
+    "4_lapy": {
+        "url": "https://new.4lapy.ru",
+        "search_form": "search/filter/?query=$&skipQueryCorrection=0"
+    },
+    "zoozavr": {
+        "url": "https://zoozavr.ru",
+        "search_form": "search/?q=$"
+    },
+    "bethoven": {
+        "url": "https://www.bethowen.ru",
+        "search_form": "search/?q=$"
+    }
 }
 
 
-def json_to_dict(filename: str) -> dict | None:
-    try:
-        with open(filename) as file:
-            return json.load(file)
-    except FileNotFoundError or FileExistsError as e:
-        pass
-    return None
+class ParserERRORS(enum.Enum):
+    PARSER_ERROR = -2
+    CONNECTION_ERROR = -1
+    NOT_FOUND_ERROR = 0
+    PARSED = 1
 
 
-class Parser:
-    def __init__(self):
+def perform_json(vendor_code, username):
+    return {
+        "vendor_code": vendor_code,
+        "user": {
+            "username": username
+        },
+        "name": "Н/Д",
+        "price": "Н/Д",
+        "text": "Н/Д",
+        "store": {
+            "name": None,
+        }
+    }
+
+
+class MultiParser:
+    def __init__(self, headless=False):
         self.session = requests.Session()
-
-    def selenium_init(self):
         options = Options()
-        self.driver  = webdriver.Chrome(options=options)
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(options=options)
 
-
-    def getSoup(self, url):
+    def get_by_url(self, url: str) -> BeautifulSoup | None:
         req = self.session.get(url)
         if req.status_code != 200:
-            print("PARSE ERROR")
             return None
         return BeautifulSoup(req.text, "html.parser")
 
-    def parseValta(self, old_json):
-        vendor_code = old_json["vendor_code"]
-        url = URLS["valtaS"](vendor_code)
-        soup = self.getSoup(url)
-        good_url, price = None, None
-        if not soup: return None
-        goods = soup.findAll('div', class_="p-i")
-        for good in goods:
-            article = good.find('div', class_="p-i__article")
-            if article.text.split()[1] != vendor_code: continue
-            price = good.find("div", class_="p-i__price-block").find("span").text.strip()
-            good_url = good.find("a", class_="p-i__img").get("href")
+
+def parse_valta(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "valta"
+    url = f'{URL["valta"]["url"]}/{URL["valta"]["search_form"]}'
+    url = url.replace("$", search_object)
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = soup.findAll('div', class_="p-i")
+    if not goods:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    god = None
+    for good in goods:
+        article = good.find('div', class_="p-i__article").text
+        article = article.replace("Артикул:", "")
+        article = article.strip()
+        if article == search_object:
+            god = good
             break
-        if not good_url:
-            return None
-        price = str(float(price.split()[0]))
-        soup = self.getSoup(f"{URLS['valta']}{good_url}")
-        descriptions = soup.find("div", class_="detail__about")
-        descriptions = descriptions.findAll("p")
-        descriptions = list(map(lambda x: x.text.strip(), descriptions))
-        old_json["name"] = descriptions[0]
-        descriptions = " ".join(descriptions[1:])
-        old_json["text"] = descriptions[1:]
-        old_json["store"]["name"] = "Valta"
-        old_json["price"] = price
-        return old_json
+    else:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    url = soup.find("a", class_="p-i__img").get("href")
+    if not url:
+        return shell, ParserERRORS.PARSER_ERROR
+    price = god.find("div", class_="p-i__price-block").text
+    if not price:
+        return shell, ParserERRORS.PARSER_ERROR
+    price = price.replace('руб', '').replace(' ', '')
+    price = str(float(price))
+    url = URL["valta"]["url"] + url
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    name = soup.find("div", class_="detail__title desktop")
+    if not name:
+        return shell, ParserERRORS.PARSER_ERROR
+    name = name.find("h1")
+    if not name:
+        return shell, ParserERRORS.PARSER_ERROR
+    name = name.text
+    desc = soup.find("div", class_="detail__about")
+    if not desc:
+        return shell, ParserERRORS.PARSER_ERROR
+    desc = desc.text.replace('<br>', '\n')
+    desc = desc.split()
+    desc = list(map(lambda el: el.strip(), desc))
+    desc = " ".join(desc)
 
-    #TODO! Selenium
-    def parse4Lapy(self, search_text):
-        option = Options()
-        option.add_argument('--disable-infobars')
-        self.browser = webdriver.Chrome(options=option)
-        self.session.headers.update({
-                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.60 YaBrowser/20.12.0.963 Yowser/2.5 Safari/537.36 '})
-        url = URLS["4lapy"](search_text)
-        #init selenium headless browser
-        self.browser.get(url)
-        time.sleep(20)
-        print("Доспал")
-        #get all divs
-        goods = self.browser.find_elements(By.TAG_NAME, "div")
-        for good in goods:
-            print(good.text, good.get_attribute("class"))
-            #print(good.find("div", class_="p-i__info").text)
+    shell["name"] = name
+    shell["text"] = desc
+    shell["price"] = price
+    return shell, ParserERRORS.PARSED
 
 
+def parse_oldfarm(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "old_farm"
+    url = f'{URL["old_farm"]["url"]}/{URL["old_farm"]["search_form"]}'
+    url = url.replace("$", search_object)
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = soup.findAll('div', class_="product-item__main")
+    if len(goods) != 1:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    good = goods[0]
+    url = good.find("div", "product-item__img")
+    if not url:
+        return shell, ParserERRORS.PARSER_ERROR
+    url = url.find("a")
+    if not url:
+        return shell, ParserERRORS.PARSER_ERROR
+    url = URL["old_farm"]["url"] + url.get("href")
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.PARSER_ERROR
+    desc = soup.find("article", class_="article_tabs")
+    if not desc:
+        return shell, ParserERRORS.PARSER_ERROR
+    price = soup.find("span", class_="regionPriceList")
+    if not price:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    price = price.text.replace('\xa0', '').replace('р.', '0')
+    price = str(float(price.strip()))
+    name = soup.find("h1", class_="heading_product")
+    if not name:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    shell["name"] = name.text
+    shell["text"] = desc.text
+    shell["price"] = price
+    return shell, ParserERRORS.PARSED
 
-    def parseZoozavr(self, vendor_code, username):
-        url = URLS["zoozavr"](vendor_code)
-        soup = self.getSoup(url)
-        if not soup: return None
-        print(soup)
 
-    def perform_json(self, vendor_code, username):
-        return {
-            "vendor_code": vendor_code,
-            "user":{
-                "username": "admin"
-            },
-            "name": None,
-            "price": None,
-            "text": None,
-            "store":{
-                "name": None,
-            }
-        }
-
-    def parseOldFarm(self, old_json):
-        vendor_code  = old_json["vendor_code"]
-
-        url  = URLS["oldFarmS"](vendor_code)
-        soup  = self.getSoup(url)
-        soup = soup.find("div", class_="product-wrap")
-        soup = soup.find_all("div", class_="product-item")
-        if len(soup) != 1: return None
-        else: soup = soup[0]
-        url = soup.find("a", class_="product-item__link").get("href")
-        url = f"{URLS['oldFarm']}{url}"
-        soup = self.getSoup(url)
-        price = soup.find("span", class_="product-info__value regionPriceList").text.strip()
-        price = price.replace(u'\xa0', ' ')[:-3]
-        text = soup.find("h1", class_="heading heading_product").text.strip()
-        desc = soup.find("article", class_="article article_tabs").findAll("p")
-        desc = " ".join(map(lambda p: p.text.strip(), desc))
-        old_json["name"] = text
-        old_json["text"] = desc
-        old_json["store"]["name"] = "OldFarm"
-        old_json["price"] = price
-        return old_json
-
-    def parseBethoven(self, json):
-        vendor_code = json["vendor_code"]
-        url = URLS["bethovenS"](vendor_code)
-        self.driver.get(url)
-        elem = WebDriverWait(self.driver, 30).until(
-            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'dgn-flex')]"))
+def parse_bethoven(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "bethoven"
+    url = f'{URL["bethoven"]["url"]}/{URL["bethoven"]["search_form"]}'
+    url = url.replace("$", search_object)
+    try:
+        mp.driver.get(url)
+        goods = WebDriverWait(mp.driver, 30).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//div[contains(@class, 'dgn-flex')]")
+            )
         )
-        goods = elem.find_elements(By.XPATH, "//div[contains(@class, 'pr-card__description')]")
-        if not goods: return None
-        mxnum = 0
-        mxgood = None
-        for idx, good in enumerate(goods):
-            name = good.find_element(By.CLASS_NAME, "sale-gray-dark")
-            cmp = ncmp(vendor_code, name.text)
-            if cmp > mxnum:
-                mxnum = cmp
-                mxgood = idx
-        json["store"]["name"] = "Bethoven",
-        if mxnum < 76:
-            json["name"] = "Н/Д",
-            json["text"] = "Н/Д",
-            json["price"] = "Н/Д"
-            return json
-        element = goods[mxgood]
-        json["name"] = element.find_element(By.CLASS_NAME, "sale-gray-dark").text
-        json["text"] = "Н/Д"
-        price = str(float(element.find_element(By.CLASS_NAME, "pr-card__retail-price").text.replace('\u20BD', '').replace(' ', '')))
-        json["price"] = price
-        return json
+    except Exception:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = goods.find_elements(By.XPATH, "//a[contains(@class, 'sale-gray-dark')]")
+    if not goods:
+        return shell, ParserERRORS.PARSER_ERROR
+    mxidx = -1
+    mxnum = 0
+    for idx, good in enumerate(goods):
+        num = ncmp(search_object, good.text)
+        if num > mxnum:
+            mxnum = num
+            mxidx = idx
+    if mxnum < 75:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    good = goods[mxidx]
+    url = good.get_attribute("href")
+    card = None
+    try:
+        mp.driver.get(url)
+        card = WebDriverWait(mp.driver, 30).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//div[contains(@class, 'card_detail__info-container')]")
+            )
+        )
+    except Exception:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    if not card:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    name = card.find_element(By.XPATH, "//div[contains(@class, 'card_detail__title')]")
+    name = name.find_element(By.XPATH, ".//h1").text
+    price = card.find_element(By.XPATH, "//div[contains(@class, 'retail-price')]")
+    price = str(float(price.text.replace('\xa0', '').replace("Цена:", "").replace("₽", "").replace(" ", "")))
+    shell["name"] = name
+    shell["price"] = price
+    return shell, ParserERRORS.PARSED
 
-    def run(self, user_id: str, vendor_code: str) -> dict:
-        clean_json = self.perform_json(vendor_code, user_id)
-        repsonse = [self.parseValta(deepcopy(clean_json)), self.parseOldFarm(deepcopy(clean_json))]
-        bet_copy = deepcopy(clean_json)
-        bet_copy["vendor_code"] = repsonse[0]["name"]
-        self.selenium_init()
-        repsonse.append(self.parseBethoven(bet_copy))
-        repsonse[-1]["vendor_code"]  =  repsonse[0]["vendor_code"]
-        return repsonse
 
+def parse_4Lapy(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "4_Lapy"
+    url = f"{URL['4_lapy']['url']}/{URL['4_lapy']['search_form']}"
+    url = url.replace("$", search_object)
+    try:
+        mp.driver.get(url)
+        elem = WebDriverWait(mp.driver, 30).until(
+            EC.presence_of_element_located((By.XPATH, "//section[contains(@class, 'ProductsList_root__')]"))
+        )
+    except Exception:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = elem.find_elements(By.XPATH, ".//article")
+    if not goods:
+        return shell, ParserERRORS.PARSER_ERROR
+    mxidx = -1
+    mxnum = 0
+    for idx, good in enumerate(goods):
+        name = good.find_element(By.XPATH, ".//img").get_attribute("alt")
+        num = ncmp(name, search_object)
+        if num > mxnum:
+            mxidx = idx
+            mxnum = num
+    if mxidx == -1 or mxnum < 76:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    good = goods[mxidx]
+    name = good.find_element(By.XPATH, ".//img").get_attribute("alt")
+    price = good.find_element(By.XPATH, ".//div[contains(@class, 'text-price-big')]").text.replace('\u20BD',
+                                                                                                   '').replace(' ', '')
+    shell["name"] = name
+    shell["price"] = str(float(price))
+    return shell, ParserERRORS.PARSED
+
+
+def parse_one_thread(username: str, vendor_code: str) -> list | str:
+    responce = []
+    clean_shell = perform_json(vendor_code, username)
+
+    # Начальный request-парсинг по артиклу
+    print("Парсим валту")
+    valta, valta_status = parse_valta(deepcopy(clean_shell), vendor_code)
+    print("Парсим старую ферму")
+    oldfarm, oldfarm_status = parse_oldfarm(deepcopy(clean_shell), vendor_code)
+    if not valta_status == ParserERRORS.PARSED and not oldfarm_status == ParserERRORS.PARSED:
+        return valta_status
+    name = None
+    if valta_status == ParserERRORS.PARSED:
+        name = valta["name"]
+    else:
+        name = oldfarm["name"]
+
+    # print("Парсим бетховен")
+    # bethoven, bethoven_status = parse_bethoven(deepcopy(clean_shell), name, mp=MultiParser(headless=True))
+    print("Парсим 4 лапы")
+    ch_lapy, ch_lapy_status = parse_4Lapy(deepcopy(clean_shell), name, mp=MultiParser(headless=True))
+    return [valta, oldfarm, ch_lapy]
+
+
+def parse_multithreaded(username: str, vendor_code: str) -> list | ParserERRORS:
+    def parse_wrapper(shell: dict, search_object: str, queue: Queue, func) -> None:
+        queue.put(func(shell, search_object))
+
+    def unpack_queue(que: Queue) -> list:
+        ans = []
+        while not que.empty():
+            ans.append(que.get())
+        return ans
+
+    def thread_control(ths: list) -> None:
+        for th in ths:
+            th.start()
+        for th in ths:
+            th.join()
+
+    queue = Queue()
+    shell = perform_json(vendor_code, username)
+    threads = [
+        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_valta)),
+        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_oldfarm))
+    ]
+    thread_control(threads)
+    result = unpack_queue(queue)
+
+    ctr = 0
+    name = None
+    for res, status in result:
+        if status != ParserERRORS.PARSED:
+            ctr += 1
+        else:
+            name = res["name"]
+    if not name or ctr == 2:
+        return ParserERRORS.PARSER_ERROR
+
+    threads = [
+        Thread(target=parse_wrapper, args=(deepcopy(shell), name, queue, parse_4Lapy)),
+    ]
+    thread_control(threads)
+    result.append(unpack_queue(queue))
+
+    return result
+
+
+def parse(username: str, vendor_code: str, multithreaded=False) -> list | ParserERRORS:
+    if multithreaded:
+        return parse_multithreaded(username, vendor_code)
+    return parse_one_thread(username, vendor_code)
+
+
+if __name__ == "__main__":
+    # print(parse("admin", "7173549"))
+    print(parse("admin", "2540355", multithreaded=True))
