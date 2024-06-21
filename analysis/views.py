@@ -74,10 +74,19 @@ def post_product(request):
 
         result = AsyncResult(p.id)
 
-        while result.result == None:
-            time.sleep(1)
+        # while result.result == None:
+        #     time.sleep(1)
 
-        return Response(result.result)
+        timeout = 60  # Максимальное время ожидания в секундах
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            result = AsyncResult(p.id)
+            if result.ready():
+                if result.state == 'SUCCESS':
+                    return Response(result.result)
+                else:
+                    return Response({'status': result.state})
+
     return Response()
 
 
