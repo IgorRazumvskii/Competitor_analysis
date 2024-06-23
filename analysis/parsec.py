@@ -293,24 +293,25 @@ def parse_multithreaded(username: str, vendor_code: str) -> list | ParserERRORS:
         Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_oldfarm))
     ]
     thread_control(threads)
-    result = unpack_queue(queue)
-
+    data = unpack_queue(queue)
     ctr = 0
     name = None
-    for res, status in result:
+    result = []
+    for res, status in data:
         if status != ParserERRORS.PARSED:
             ctr += 1
         else:
             name = res["name"]
+        result.append(res)
     if not name or ctr == 2:
         return ParserERRORS.PARSER_ERROR
-
     threads = [
         Thread(target=parse_wrapper, args=(deepcopy(shell), name, queue, parse_4Lapy)),
     ]
     thread_control(threads)
-    result.append(unpack_queue(queue))
-    result = list(map(lambda el: el[0], result))
+    data = unpack_queue(queue)
+    for data_elem in data:
+        result.append(data_elem[0])
     return result
 
 

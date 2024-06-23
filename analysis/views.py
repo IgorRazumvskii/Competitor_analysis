@@ -77,7 +77,7 @@ def post_product(request):
         # while result.result == None:
         #     time.sleep(1)
 
-        timeout = 60  # Максимальное время ожидания в секундах
+        timeout = 300  # Максимальное время ожидания в секундах
         start_time = time.time()
         while time.time() - start_time < timeout:
             result = AsyncResult(p.id)

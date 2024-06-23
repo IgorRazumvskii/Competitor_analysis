@@ -55,11 +55,10 @@ from .serializers import ProductSerializerCreate
 
 @shared_task
 def parsing(vendor_code=0, user=0):
-    data = parse(user, vendor_code)
+    data = parse(user, vendor_code, multithreaded=True)
 
     if not type(data) == list:
         return 'Error'
-
     for item in data:
         usernames = [user]
         users = [User.objects.get_or_create(username=username)[0] for username in usernames]
