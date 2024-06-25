@@ -14,6 +14,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from fuzzywuzzy.fuzz import token_sort_ratio as ncmp
 
+SELENIUM_TIMEOUT_ERROR = 10
+
 URL = {
     "valta": {
         "url": "https://valta.ru",
@@ -27,13 +29,25 @@ URL = {
         "url": "https://new.4lapy.ru",
         "search_form": "search/filter/?query=$&skipQueryCorrection=0"
     },
-    "zoozavr": {
-        "url": "https://zoozavr.ru",
-        "search_form": "search/?q=$"
-    },
     "bethoven": {
         "url": "https://www.bethowen.ru",
         "search_form": "search/?q=$"
+    },
+    "kotmatros": {
+        "url": "https://kotmatros.ru",
+        "search_form": "search/$"
+    },
+    "magizoo": {
+        "url": "https://magizoo.ru",
+        "search_form": "search/?q=$&s="
+    },
+    "zoomag": {
+        "url": "https://zoomag.ru",
+        "search_form": "search/?match=all&subcats=Y&pcode_from_q=Y&pshort=Y&pfull=Y&pname=Y&pkeywords=Y&search_performed=Y&q=$"
+    },
+    "zoozavr": {
+        "url": "https://zoozavr.ru",
+        "search_form": "search/results/?qt=$&searchType=zoo&searchMode=common"
     }
 }
 
@@ -61,10 +75,11 @@ def perform_json(vendor_code, username):
 
 
 class MultiParser:
-    def __init__(self, headless=False):
+    def __init__(self, headless=True):
         self.session = requests.Session()
         options = Options()
-        options.add_argument("--headless")
+        if headless:
+            options.add_argument("--headless")
         self.driver = webdriver.Chrome(options=options)
 
     def get_by_url(self, url: str) -> BeautifulSoup | None:
@@ -171,7 +186,7 @@ def parse_bethoven(shell: dict, search_object: str, mp=MultiParser()) -> (dict, 
     url = url.replace("$", search_object)
     try:
         mp.driver.get(url)
-        goods = WebDriverWait(mp.driver, 30).until(
+        goods = WebDriverWait(mp.driver, SELENIUM_TIMEOUT_ERROR).until(
             EC.presence_of_element_located(
                 (By.XPATH, "//div[contains(@class, 'dgn-flex')]")
             )
@@ -195,7 +210,7 @@ def parse_bethoven(shell: dict, search_object: str, mp=MultiParser()) -> (dict, 
     card = None
     try:
         mp.driver.get(url)
-        card = WebDriverWait(mp.driver, 30).until(
+        card = WebDriverWait(mp.driver, SELENIUM_TIMEOUT_ERROR).until(
             EC.presence_of_element_located(
                 (By.XPATH, "//div[contains(@class, 'card_detail__info-container')]")
             )
@@ -219,7 +234,7 @@ def parse_4Lapy(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int
     url = url.replace("$", search_object)
     try:
         mp.driver.get(url)
-        elem = WebDriverWait(mp.driver, 30).until(
+        elem = WebDriverWait(mp.driver, SELENIUM_TIMEOUT_ERROR).until(
             EC.presence_of_element_located((By.XPATH, "//section[contains(@class, 'ProductsList_root__')]"))
         )
     except Exception:
@@ -244,6 +259,146 @@ def parse_4Lapy(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int
     shell["name"] = name
     shell["price"] = str(float(price))
     return shell, ParserERRORS.PARSED
+
+
+def parse_kotmatros(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "kotmatros"
+    url = f"{URL['kotmatros']['url']}/{URL['kotmatros']['search_form']}"
+    url = url.replace('$', search_object)
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = soup.findAll("div", class_="c-products-thumbs__item")
+    finded = None
+    for good in goods:
+        art = good.find("span", class_="c-value__value-text").text
+        if art == shell["vendor_code"]:
+            finded = good
+            break
+    else:
+        return shell, ParserERRORS.PARSER_ERROR
+    href = finded.find("a", class_="c-product-thumb__name").get("href")
+    if not href:
+        return shell, ParserERRORS.PARSER_ERROR
+    url = f'{URL["kotmatros"]["url"]}{href}'
+    soup = mp.get_by_url(url)
+    desc = soup.findAll("section", class_="c-content-tabs__content")
+    if not desc:
+        return shell, ParserERRORS.PARSER_ERROR
+    desc = list(map(lambda el: el.text, desc))
+    if len(desc) > 3:
+        desc = desc[:-2]
+    desc = " ".join(desc)
+    desc = desc.replace('\n', '').replace('\t', '')
+    name = soup.find("h1", class_="c-header_h1").text
+    price = soup.find("span", class_="c-product-add-to-cart__price").text
+    price = str(float(price.replace('\u20BD', '').replace(' ', '')))
+    shell["name"] = name
+    shell["text"] = desc
+    shell["price"] = price
+    return shell, ParserERRORS.PARSED
+
+
+def parse_magizoo(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "magizoo"
+    url = f"{URL['magizoo']['url']}/{URL['magizoo']['search_form']}"
+    url = url.replace('$', search_object)
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = soup.findAll("div", class_="item")
+    if not goods or len(goods) != 1:
+        return shell, ParserERRORS.PARSER_ERROR
+    good = goods[0]
+    href = good.find("a", class_="link-base").get("href")
+    url = f'{URL["magizoo"]["url"]}{href}'
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    name = soup.find("h1", class_="site-title").text
+    price = soup.find("span", class_="product-checkout__price").text
+    price = price.replace('\u20BD', '').replace(' ', '').strip()
+    price = str(float(price))
+    shell["name"] = name
+    shell["price"] = price
+    return shell, ParserERRORS.PARSED
+
+
+def parse_zoomag(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "zoomag"
+    url = f"{URL['zoomag']['url']}/{URL['zoomag']['search_form']}"
+    url = url.replace('$', search_object)
+    soup = mp.get_by_url(url)
+    if not soup:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    goods = soup.findAll("a", class_="product-title")
+    if not goods:
+        return shell, ParserERRORS.PARSER_ERROR
+    mxnum = 0
+    mxa = None
+    for good in goods:
+        text = good.get("title").strip()
+        if text:
+            num = ncmp(text, search_object)
+            if num > mxnum:
+                mxnum = num
+                mxa = good
+    if not mxa or mxnum < 66:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    url = mxa.get("href")
+    soup = mp.get_by_url(url)
+    prices = soup.findAll("label", class_="price-line")
+    price_val = None
+    for price in prices:
+        inp = price.find("input", checked=True)
+        if inp:
+            price_val = price.find("bdi", class_="auth_order").text
+    if not price_val:
+        return shell, ParserERRORS.PARSER_ERROR
+    price_val = price_val.replace('\u20BD', '').replace(' ', '').strip()
+    price_val = str(float(price_val))
+    name = soup.find("span", class_="ty-product-block-title-desc").text
+    desc = soup.find("div", id="content_opisanie").text.strip()
+    desc += soup.find("div", id="content_sostav").text.strip()
+    shell["name"] = name
+    shell["text"] = desc
+    shell["price"] = price_val
+    return shell, ParserERRORS.PARSED
+
+
+def parse_zoozavr(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
+    shell["store"]["name"] = "zoozavr"
+    url = f"{URL['zoozavr']['url']}/{URL['zoozavr']['search_form']}"
+    url = url.replace('$', search_object)
+    try:
+        mp.driver.get(url)
+    except Exception:
+        return shell, ParserERRORS.CONNECTION_ERROR
+    try:
+        WebDriverWait(mp.driver, SELENIUM_TIMEOUT_ERROR).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "section[data-product-id]"))
+        )
+    except Exception:
+        return shell, ParserERRORS.PARSER_ERROR
+    goods = mp.driver.find_elements(By.CSS_SELECTOR, "section[data-product-id]")
+    if not goods or len(goods) != 1:
+        return shell, ParserERRORS.NOT_FOUND_ERROR
+    good = goods[0]
+    href = good.find_element(By.CLASS_NAME, "bX").get_attribute("href")
+    soup = mp.get_by_url(href)
+    price = soup.find("p", class_="bo_9")
+    if not price:
+        return shell, ParserERRORS.PARSER_ERROR
+    price = price.text.replace('\u20BD', '').replace(' ', '').strip()
+    price = str(float(price))
+    desc = soup.find("div", class_="_2k").text
+    desc = desc.strip()
+    name = soup.find("h1", class_="_2_0").text
+    shell["name"] = name
+    shell["text"] = desc
+    shell["price"] = price
+    return shell, ParserERRORS.PARSED
+
 
 
 def parse_one_thread(username: str, vendor_code: str) -> list | str:
@@ -290,9 +445,13 @@ def parse_multithreaded(username: str, vendor_code: str) -> list | ParserERRORS:
     shell = perform_json(vendor_code, username)
     threads = [
         Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_valta)),
-        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_oldfarm))
+        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_oldfarm)),
+        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_kotmatros)),
+        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_magizoo))
     ]
+    print("Первая ступень парсинга(Requests)")
     thread_control(threads)
+    print("Первая ступень отпарсилась")
     data = unpack_queue(queue)
     ctr = 0
     name = None
@@ -305,10 +464,15 @@ def parse_multithreaded(username: str, vendor_code: str) -> list | ParserERRORS:
         result.append(res)
     if not name or ctr == 2:
         return ParserERRORS.PARSER_ERROR
+    halfname = name[:(len(name) // 2)]
     threads = [
         Thread(target=parse_wrapper, args=(deepcopy(shell), name, queue, parse_4Lapy)),
+        Thread(target=parse_wrapper, args=(deepcopy(shell), halfname, queue, parse_zoomag)),
+        Thread(target=parse_wrapper, args=(deepcopy(shell), vendor_code, queue, parse_zoozavr)),
     ]
+    print("Вторая ступень парсинга(Selenium)")
     thread_control(threads)
+    print("Вторая ступень отпарсилась")
     data = unpack_queue(queue)
     for data_elem in data:
         result.append(data_elem[0])
@@ -323,4 +487,8 @@ def parse(username: str, vendor_code: str, multithreaded=False) -> list | Parser
 
 if __name__ == "__main__":
     # print(parse("admin", "7173549"))
-    print(parse("admin", "2540355", multithreaded=True))
+    ans = parse("admin", "70085281", multithreaded=True)
+    for a in ans:
+        print(a)
+    #shell = perform_json( "7173549", "admin")
+    #print(parse_bethoven(deepcopy(shell), "7173549", mp=MultiParser(headless=False)))
