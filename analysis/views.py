@@ -9,6 +9,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.shortcuts import render
 
+import pandas as pd
+
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -18,6 +20,7 @@ from rest_framework.response import Response
 from .models import Product, Store
 from .serializers import ProductSerializer, ProductSerializerCreate, UserSerializer, UserSerializerCreate
 from .tasks import parsing
+from .word2vec_model import load_model
 
 
 #  регистрация
@@ -58,6 +61,20 @@ def post_product(request):
         token = Token.objects.get(key=request.data['token'])
         user = token.user
 
+        model = load_model()
+        similar_vendor_code = model.wv.most_similar(vendor_code, topn=3)
+        similar_words_only = [word for word, score in similar_vendor_code]
+        df = pd.read_csv('analysis/data.csv')
+        # pd.set_option('display.max_colwidth', None)
+        similar_res = {}
+        for similar in similar_words_only:
+            name = df['name'][df['vendor_code'] == similar]
+            name = name.to_string()
+            name = name[7:-1:]
+            similar_res[name] = similar
+
+        print(similar_res)
+
         #  поиск товаров, которые парсились сегодня
         products = Product.objects.filter(vendor_code=vendor_code, date=timezone.now())
         if products.exists():
@@ -65,7 +82,12 @@ def post_product(request):
             for p in products:
                 p.user.add(user)
             serializer = ProductSerializer(products, many=True)
-            return Response(serializer.data)
+            ans = {
+                'result': serializer.data,
+                'similar': similar_res
+            }
+            return Response(ans)
+            # return Response(serializer.data)
 
         #  запуск парсера
         p = parsing.delay(vendor_code, user.username)
@@ -83,7 +105,10 @@ def post_product(request):
             result = AsyncResult(p.id)
             if result.ready():
                 if result.state == 'SUCCESS':
-                    return Response(result.result)
+                    ans = {'result': result.result,
+                           'similar': similar_res}
+                    return Response(ans)
+                    # return Response(result.result)
                 else:
                     return Response({'status': result.state})
 
