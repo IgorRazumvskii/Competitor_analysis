@@ -90,7 +90,7 @@ class MultiParser:
 
 
 def parse_valta(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "valta"
+    shell["store"]["name"] = "Valta"
     url = f'{URL["valta"]["url"]}/{URL["valta"]["search_form"]}'
     url = url.replace("$", search_object)
     soup = mp.get_by_url(url)
@@ -143,7 +143,7 @@ def parse_valta(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int
 
 
 def parse_oldfarm(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "old_farm"
+    shell["store"]["name"] = "Old_farm"
     url = f'{URL["old_farm"]["url"]}/{URL["old_farm"]["search_form"]}'
     url = url.replace("$", search_object)
     soup = mp.get_by_url(url)
@@ -181,7 +181,7 @@ def parse_oldfarm(shell: dict, search_object: str, mp=MultiParser()) -> (dict, i
 
 
 def parse_bethoven(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "bethoven"
+    shell["store"]["name"] = "Bethoven"
     url = f'{URL["bethoven"]["url"]}/{URL["bethoven"]["search_form"]}'
     url = url.replace("$", search_object)
     try:
@@ -262,7 +262,7 @@ def parse_4Lapy(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int
 
 
 def parse_kotmatros(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "kotmatros"
+    shell["store"]["name"] = "Kotmatros"
     url = f"{URL['kotmatros']['url']}/{URL['kotmatros']['search_form']}"
     url = url.replace('$', search_object)
     soup = mp.get_by_url(url)
@@ -300,7 +300,7 @@ def parse_kotmatros(shell: dict, search_object: str, mp=MultiParser()) -> (dict,
 
 
 def parse_magizoo(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "magizoo"
+    shell["store"]["name"] = "Magizoo"
     url = f"{URL['magizoo']['url']}/{URL['magizoo']['search_form']}"
     url = url.replace('$', search_object)
     soup = mp.get_by_url(url)
@@ -325,7 +325,7 @@ def parse_magizoo(shell: dict, search_object: str, mp=MultiParser()) -> (dict, i
 
 
 def parse_zoomag(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "zoomag"
+    shell["store"]["name"] = "Zoomag"
     url = f"{URL['zoomag']['url']}/{URL['zoomag']['search_form']}"
     url = url.replace('$', search_object)
     soup = mp.get_by_url(url)
@@ -367,7 +367,7 @@ def parse_zoomag(shell: dict, search_object: str, mp=MultiParser()) -> (dict, in
 
 
 def parse_zoozavr(shell: dict, search_object: str, mp=MultiParser()) -> (dict, int):
-    shell["store"]["name"] = "zoozavr"
+    shell["store"]["name"] = "Zoozavr"
     url = f"{URL['zoozavr']['url']}/{URL['zoozavr']['search_form']}"
     url = url.replace('$', search_object)
     try:
