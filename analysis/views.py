@@ -66,14 +66,13 @@ def post_product(request):
         similar_words_only = [word for word, score in similar_vendor_code]
         df = pd.read_csv('analysis/data.csv')
         # pd.set_option('display.max_colwidth', None)
-        similar_res = {}
+        similar_res = []
         for similar in similar_words_only:
             name = df['name'][df['vendor_code'] == similar]
             name = name.to_string()
             name = name[7:-1:]
-            similar_res[name] = similar
+            similar_res.append({'name': name, 'vendor_code': similar})
 
-        print(similar_res)
 
         #  поиск товаров, которые парсились сегодня
         products = Product.objects.filter(vendor_code=vendor_code, date=timezone.now())
