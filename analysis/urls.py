@@ -10,5 +10,6 @@ urlpatterns = [
     path('history/', all_history, name='history'),
     path('product_history/', product_history, name='product_history'),
     path('graph/', graph, name='graph'),
+    path('two_products/', post_products, name='two_products')
 
 ]

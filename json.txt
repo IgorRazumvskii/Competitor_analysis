@@ -26,3 +26,9 @@
     "vendor_code": "70085281",
     "store": "Valta"
 }
+
+{
+    "vendor_code_1": "70085281",
+    "vendor_code_2": "2540355",
+    "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
+}

@@ -70,7 +70,8 @@ def post_product(request):
         for similar in similar_words_only:
             name = df['name'][df['vendor_code'] == similar]
             name = name.to_string()
-            name = name[7:-1:]
+            name = name.split()[1:]
+            name = " ".join(name)
             similar_res.append({'name': name, 'vendor_code': similar})
 
 
@@ -178,4 +179,55 @@ def graph(request):
         if products.exists():
             serializer = ProductSerializer(products, many=True)
             return Response(serializer.data)
+
+
+# получение запроса на парсинг
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def post_products(request):
+    if request.method == 'POST':
+        #  берем артикулы
+        vendor_code_1 = request.data['vendor_code_1']
+        vendor_code_2 = request.data['vendor_code_2']
+        #  достаем пользователя
+        token = Token.objects.get(key=request.data['token'])
+        user = token.user
+
+        products_1 = Product.objects.filter(vendor_code=vendor_code_1, date=timezone.now())
+        products_2 = Product.objects.filter(vendor_code=vendor_code_2, date=timezone.now())
+        if products_1.exists() and products_1.exists():
+
+            for p in products_1:
+                p.user.add(user)
+            serializer1 = ProductSerializer(products_1, many=True)
+
+            for p in products_2:
+                p.user.add(user)
+            serializer2 = ProductSerializer(products_2, many=True)
+            ans = {'result_1': serializer1.data,
+                   'result_2': serializer2.data}
+
+            return Response(ans)
+
+        #  запуск парсера
+        p1 = parsing.delay(vendor_code_1, user.username)
+        p2 = parsing.delay(vendor_code_1, user.username)
+        if p1 == 'Error' or p2 == 'Error':
+            return Response({"Error": "Неправильно введен артикул"})
+
+        timeout = 300  # Максимальное время ожидания в секундах
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            result_1 = AsyncResult(p1.id)
+            result_2 = AsyncResult(p2.id)
+
+            if result_1.ready() and result_2.ready():
+                if result_1.state == 'SUCCESS' and result_2.state == 'SUCCESS':
+                    ans = {'result_1': result_1.result,
+                           'result_2': result_2.result}
+                    return Response(ans)
+                else:
+                    return Response({'status': result_1.state})
+
+    return Response()
 
