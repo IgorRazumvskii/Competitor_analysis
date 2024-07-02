@@ -1,5 +1,5 @@
 {
-  "vendor_code": "2540355",
+  "vendor_code": "70085281",
 
    "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
 }
@@ -29,6 +29,6 @@
 
 {
     "vendor_code_1": "70085281",
-    "vendor_code_2": "2540355",
+    "vendor_code_2": "7173587",
     "token": "6582d249ad3dc09b00ec27e178cfd78bf9dfbf7a"
 }

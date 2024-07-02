@@ -61,19 +61,22 @@ def post_product(request):
         token = Token.objects.get(key=request.data['token'])
         user = token.user
 
-        model = load_model()
-        similar_vendor_code = model.wv.most_similar(vendor_code, topn=3)
-        similar_words_only = [word for word, score in similar_vendor_code]
         df = pd.read_csv('analysis/data.csv')
-        # pd.set_option('display.max_colwidth', None)
-        similar_res = []
-        for similar in similar_words_only:
-            name = df['name'][df['vendor_code'] == similar]
-            name = name.to_string()
-            name = name.split()[1:]
-            name = " ".join(name)
-            similar_res.append({'name': name, 'vendor_code': similar})
-
+        print(len(df[df['vendor_code'] == vendor_code]))
+        if len(df[df['vendor_code'] == vendor_code]) > 0:
+            model = load_model()
+            similar_vendor_code = model.wv.most_similar(vendor_code, topn=3)
+            similar_words_only = [word for word, score in similar_vendor_code]
+            print(similar_words_only, '!!!!!!!')
+            similar_res = []
+            for similar in similar_words_only:
+                name = df['name'][df['vendor_code'] == similar]
+                name = name.to_string()
+                name = name.split()[1:]
+                name = " ".join(name)
+                similar_res.append({'name': name, 'vendor_code': similar})
+        else:
+            similar_res = []
 
         #  поиск товаров, которые парсились сегодня
         products = Product.objects.filter(vendor_code=vendor_code, date=timezone.now())
@@ -86,8 +89,8 @@ def post_product(request):
                 'result': serializer.data,
                 'similar': similar_res
             }
+            print(type(serializer.data))
             return Response(ans)
-            # return Response(serializer.data)
 
         #  запуск парсера
         p = parsing.delay(vendor_code, user.username)
@@ -95,9 +98,6 @@ def post_product(request):
             return Response({"Error": "Неправильно введен артикул"})
 
         result = AsyncResult(p.id)
-
-        # while result.result == None:
-        #     time.sleep(1)
 
         timeout = 300  # Максимальное время ожидания в секундах
         start_time = time.time()
@@ -108,7 +108,6 @@ def post_product(request):
                     ans = {'result': result.result,
                            'similar': similar_res}
                     return Response(ans)
-                    # return Response(result.result)
                 else:
                     return Response({'status': result.state})
 
@@ -170,6 +169,7 @@ def product_history(request):
 #  функция для построения графиков цены товара
 @api_view(['POST'])
 def graph(request):
+
     if request.method == 'POST':
         store = Store.objects.get(name=request.data['store'])
         products = Product.objects.filter(
@@ -195,39 +195,65 @@ def post_products(request):
 
         products_1 = Product.objects.filter(vendor_code=vendor_code_1, date=timezone.now())
         products_2 = Product.objects.filter(vendor_code=vendor_code_2, date=timezone.now())
-        if products_1.exists() and products_1.exists():
+        ans1 = None
+        ans2 = None
 
+         # если первый товар парсился сегодня
+        if products_1.exists():
             for p in products_1:
                 p.user.add(user)
-            serializer1 = ProductSerializer(products_1, many=True)
+            ans1 = ProductSerializer(products_1, many=True)
+            ans1 = ans1.data
+        # если не парсился
+        else:
+            p1 = parsing.delay(vendor_code_1, user.username)
 
+            if p1 == 'Error':
+                return Response({"Error": "Неправильно введен артикул"})
+
+            timeout = 300
+            start_time = time.time()
+
+            while time.time() - start_time < timeout:
+                result_1 = AsyncResult(p1.id)
+
+                if result_1.ready():
+                    if result_1.state == 'SUCCESS':
+                        ans1 = result_1.result
+                        break
+                    else:
+                        return Response({'status': result_1.state})
+        # если второй товар парсился сегодня
+        if products_2.exists():
             for p in products_2:
                 p.user.add(user)
-            serializer2 = ProductSerializer(products_2, many=True)
-            ans = {'result_1': serializer1.data,
-                   'result_2': serializer2.data}
+            ans2 = ProductSerializer(products_2, many=True)
+            ans2 = ans2.data
+        # если не парсился
+        else:
+            p2 = parsing.delay(vendor_code_2, user.username)
 
-            return Response(ans)
+            if p2 == 'Error':
+                return Response({"Error": "Неправильно введен артикул"})
 
-        #  запуск парсера
-        p1 = parsing.delay(vendor_code_1, user.username)
-        p2 = parsing.delay(vendor_code_1, user.username)
-        if p1 == 'Error' or p2 == 'Error':
-            return Response({"Error": "Неправильно введен артикул"})
+            timeout = 300
+            start_time = time.time()
 
-        timeout = 300  # Максимальное время ожидания в секундах
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            result_1 = AsyncResult(p1.id)
-            result_2 = AsyncResult(p2.id)
+            while time.time() - start_time < timeout:
+                result_2 = AsyncResult(p2.id)
 
-            if result_1.ready() and result_2.ready():
-                if result_1.state == 'SUCCESS' and result_2.state == 'SUCCESS':
-                    ans = {'result_1': result_1.result,
-                           'result_2': result_2.result}
-                    return Response(ans)
-                else:
-                    return Response({'status': result_1.state})
+                if result_2.ready():
+                    if result_2.state == 'SUCCESS':
+                        ans2 = result_2.result
+                        break
+                    else:
+                        return Response({'status': result_2.state})
+
+        ans = {'result_1': ans1,
+               'result_2': ans2}
+
+        print(type(ans1))
+        return Response(ans)
 
     return Response()
 
